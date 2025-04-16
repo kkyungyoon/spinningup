@@ -1,3 +1,7 @@
+import sys
+sys.path.append('/root/spinningup/')
+
+
 from spinup.user_config import DEFAULT_DATA_DIR, FORCE_DATESTAMP, \
                                DEFAULT_SHORTHAND, WAIT_BEFORE_LAUNCH
 from spinup.utils.logx import colorize
@@ -45,7 +49,7 @@ def setup_logger_kwargs(exp_name, seed=None, data_dir=None, datestamp=False):
         output_dir = data_dir/YY-MM-DD_exp_name/YY-MM-DD_HH-MM-SS_exp_name_s[seed]
 
     You can force datestamp=True by setting ``FORCE_DATESTAMP=True`` in 
-    ``spinup/user_config.py``. 
+    ``spinup/``. 
 
     Args:
 

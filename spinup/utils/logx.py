@@ -5,11 +5,14 @@ Some simple logging functionality, inspired by rllab's logging.
 Logs to a tab-separated-values file (path/to/output_directory/progress.txt)
 
 """
+import sys
+sys.path.append('/root/spinningup/')
+
 import json
 import joblib
 import shutil
 import numpy as np
-import tensorflow as tf
+# import tensorflow as tf
 import torch
 import os.path as osp, time, atexit, os
 import warnings
@@ -41,32 +44,32 @@ def colorize(string, color, bold=False, highlight=False):
     if bold: attr.append('1')
     return '\x1b[%sm%s\x1b[0m' % (';'.join(attr), string)
 
-def restore_tf_graph(sess, fpath):
-    """
-    Loads graphs saved by Logger.
+# def restore_tf_graph(sess, fpath):
+#     """
+#     Loads graphs saved by Logger.
 
-    Will output a dictionary whose keys and values are from the 'inputs' 
-    and 'outputs' dict you specified with logger.setup_tf_saver().
+#     Will output a dictionary whose keys and values are from the 'inputs' 
+#     and 'outputs' dict you specified with logger.setup_tf_saver().
 
-    Args:
-        sess: A Tensorflow session.
-        fpath: Filepath to save directory.
+#     Args:
+#         sess: A Tensorflow session.
+#         fpath: Filepath to save directory.
 
-    Returns:
-        A dictionary mapping from keys to tensors in the computation graph
-        loaded from ``fpath``. 
-    """
-    tf.saved_model.loader.load(
-                sess,
-                [tf.saved_model.tag_constants.SERVING],
-                fpath
-            )
-    model_info = joblib.load(osp.join(fpath, 'model_info.pkl'))
-    graph = tf.get_default_graph()
-    model = dict()
-    model.update({k: graph.get_tensor_by_name(v) for k,v in model_info['inputs'].items()})
-    model.update({k: graph.get_tensor_by_name(v) for k,v in model_info['outputs'].items()})
-    return model
+#     Returns:
+#         A dictionary mapping from keys to tensors in the computation graph
+#         loaded from ``fpath``. 
+#     """
+#     tf.saved_model.loader.load(
+#                 sess,
+#                 [tf.saved_model.tag_constants.SERVING],
+#                 fpath
+#             )
+#     model_info = joblib.load(osp.join(fpath, 'model_info.pkl'))
+#     graph = tf.get_default_graph()
+#     model = dict()
+#     model.update({k: graph.get_tensor_by_name(v) for k,v in model_info['inputs'].items()})
+#     model.update({k: graph.get_tensor_by_name(v) for k,v in model_info['outputs'].items()})
+#     return model
 
 class Logger:
     """
@@ -101,6 +104,9 @@ class Logger:
                 print("Warning: Log dir %s already exists! Storing info there anyway."%self.output_dir)
             else:
                 os.makedirs(self.output_dir)
+            
+            # os.makedirs(self.output_dir)
+            
             self.output_file = open(osp.join(self.output_dir, output_fname), 'w')
             atexit.register(self.output_file.close)
             print(colorize("Logging data to %s"%self.output_file.name, 'green', bold=True))
@@ -180,7 +186,7 @@ class Logger:
 
             itr: An int, or None. Current iteration of training.
         """
-        if proc_id()==0:
+        if proc_id()==0: # 멀티 프로세싱 환경에서, prod_id()==0인 프로세스만 저장 작업을 수행
             fname = 'vars.pkl' if itr is None else 'vars%d.pkl'%itr
             try:
                 joblib.dump(state_dict, osp.join(self.output_dir, fname))
@@ -191,44 +197,44 @@ class Logger:
             if hasattr(self, 'pytorch_saver_elements'):
                 self._pytorch_simple_save(itr)
 
-    def setup_tf_saver(self, sess, inputs, outputs):
-        """
-        Set up easy model saving for tensorflow.
+    # def setup_tf_saver(self, sess, inputs, outputs):
+    #     """
+    #     Set up easy model saving for tensorflow.
 
-        Call once, after defining your computation graph but before training.
+    #     Call once, after defining your computation graph but before training.
 
-        Args:
-            sess: The Tensorflow session in which you train your computation
-                graph.
+    #     Args:
+    #         sess: The Tensorflow session in which you train your computation
+    #             graph.
 
-            inputs (dict): A dictionary that maps from keys of your choice
-                to the tensorflow placeholders that serve as inputs to the 
-                computation graph. Make sure that *all* of the placeholders
-                needed for your outputs are included!
+    #         inputs (dict): A dictionary that maps from keys of your choice
+    #             to the tensorflow placeholders that serve as inputs to the 
+    #             computation graph. Make sure that *all* of the placeholders
+    #             needed for your outputs are included!
 
-            outputs (dict): A dictionary that maps from keys of your choice
-                to the outputs from your computation graph.
-        """
-        self.tf_saver_elements = dict(session=sess, inputs=inputs, outputs=outputs)
-        self.tf_saver_info = {'inputs': {k:v.name for k,v in inputs.items()},
-                              'outputs': {k:v.name for k,v in outputs.items()}}
+    #         outputs (dict): A dictionary that maps from keys of your choice
+    #             to the outputs from your computation graph.
+    #     """
+    #     self.tf_saver_elements = dict(session=sess, inputs=inputs, outputs=outputs)
+    #     self.tf_saver_info = {'inputs': {k:v.name for k,v in inputs.items()},
+    #                           'outputs': {k:v.name for k,v in outputs.items()}}
 
-    def _tf_simple_save(self, itr=None):
-        """
-        Uses simple_save to save a trained model, plus info to make it easy
-        to associated tensors to variables after restore. 
-        """
-        if proc_id()==0:
-            assert hasattr(self, 'tf_saver_elements'), \
-                "First have to setup saving with self.setup_tf_saver"
-            fpath = 'tf1_save' + ('%d'%itr if itr is not None else '')
-            fpath = osp.join(self.output_dir, fpath)
-            if osp.exists(fpath):
-                # simple_save refuses to be useful if fpath already exists,
-                # so just delete fpath if it's there.
-                shutil.rmtree(fpath)
-            tf.saved_model.simple_save(export_dir=fpath, **self.tf_saver_elements)
-            joblib.dump(self.tf_saver_info, osp.join(fpath, 'model_info.pkl'))
+    # def _tf_simple_save(self, itr=None):
+    #     """
+    #     Uses simple_save to save a trained model, plus info to make it easy
+    #     to associated tensors to variables after restore. 
+    #     """
+    #     if proc_id()==0:
+    #         assert hasattr(self, 'tf_saver_elements'), \
+    #             "First have to setup saving with self.setup_tf_saver"
+    #         fpath = 'tf1_save' + ('%d'%itr if itr is not None else '')
+    #         fpath = osp.join(self.output_dir, fpath)
+    #         if osp.exists(fpath):
+    #             # simple_save refuses to be useful if fpath already exists,
+    #             # so just delete fpath if it's there.
+    #             shutil.rmtree(fpath)
+    #         tf.saved_model.simple_save(export_dir=fpath, **self.tf_saver_elements)
+    #         joblib.dump(self.tf_saver_info, osp.join(fpath, 'model_info.pkl'))
     
 
     def setup_pytorch_saver(self, what_to_save):
@@ -336,12 +342,19 @@ class EpochLogger(Logger):
         Provide an arbitrary number of keyword arguments with numerical 
         values.
         """
+        # kwargs = {'EpRet': ep_ret, 'EpLen': ep_len}
         for k,v in kwargs.items():
             if not(k in self.epoch_dict.keys()):
                 self.epoch_dict[k] = []
             self.epoch_dict[k].append(v)
+        """
+        self.epoch_dict = {
+            'EpRet': [ep_ret_1, ep_ret_2, ep_ret_3, ...],
+            'EpLen': [ep_len_1, ep_len_2, ep_len_3, ...],
+        }
+        """
 
-    def log_tabular(self, key, val=None, with_min_and_max=False, average_only=False):
+    def log_tabular(self, key, val=None, with_min_and_max=False, average_only=False): # val : store()로 저장된 값이 있다면 쓰면 안 됨
         """
         Log a value or possibly the mean/std/min/max values of a diagnostic.
 
@@ -361,18 +374,18 @@ class EpochLogger(Logger):
                 of the diagnostic over the epoch.
         """
         if val is not None:
-            super().log_tabular(key,val)
+            super().log_tabular(key,val) # store() 안 쓰고, 값을 직접 전달한 경우엔 바로 기록
         else:
-            v = self.epoch_dict[key]
-            vals = np.concatenate(v) if isinstance(v[0], np.ndarray) and len(v[0].shape)>0 else v
-            stats = mpi_statistics_scalar(vals, with_min_and_max=with_min_and_max)
+            v = self.epoch_dict[key] # store로 저장해둔 값 리스트
+            vals = np.concatenate(v) if isinstance(v[0], np.ndarray) and len(v[0].shape)>0 else v # 값이 벡터일 경우, concat해서 1D 배열로 만들어줌
+            stats = mpi_statistics_scalar(vals, with_min_and_max=with_min_and_max) # mpi_statistics_scalar : 분산환경에서도 통계량 잘 계산되도록 도와줌
             super().log_tabular(key if average_only else 'Average' + key, stats[0])
             if not(average_only):
                 super().log_tabular('Std'+key, stats[1])
             if with_min_and_max:
                 super().log_tabular('Max'+key, stats[3])
                 super().log_tabular('Min'+key, stats[2])
-        self.epoch_dict[key] = []
+        self.epoch_dict[key] = [] # 에폭 값 초기화
 
     def get_stats(self, key):
         """
